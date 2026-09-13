@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"html/template"
@@ -79,6 +80,12 @@ func recreateOutputDir() error {
 		return fmt.Errorf("create %q: %w", OutputDir, err)
 	}
 
+	// copying the assets folder into the output dir
+	err := os.CopyFS(OutputDir, os.DirFS("assets"))
+	if err != nil {
+		return fmt.Errorf("copy assets: %w", err)
+	}
+
 	return nil
 }
 
@@ -149,4 +156,127 @@ func renderHomePageHTML(posts PostList) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func buildStaticSite() error {
+	err := recreateOutputDir()
+	if err != nil {
+		fmt.Println("error in function recreateOutputDir", err)
+		return err
+	}
+
+	/* walk the folder fetching all the '.md' files. For each of these files:
+	-> run 'parseMetadataAndContent'
+	-> run 'renderNewPostHTML'
+	-> write the html file for this post content
+	*/
+	posts, err := getAllPosts()
+	if err != nil {
+		return err
+	}
+	for _, p := range posts {
+		err = genHTMLFileForPost(p)
+		if err != nil {
+			return err
+		}
+	}
+
+	// generating HTML home page
+	err = genHTMLFileForHome(posts)
+	if err != nil {
+		return err
+	}
+
+	// generating RSS feed
+
+	return nil
+}
+
+func getAllPosts() ([]*Post, error) {
+	fis, err := os.ReadDir(".")
+	if err != nil {
+		fmt.Println("could not the post directory", err)
+		return nil, err
+	}
+	posts := make([]*Post, 0)
+	for _, fi := range fis {
+		if !fi.IsDir() && strings.HasSuffix(fi.Name(), ".md") {
+			mdContent, err := os.ReadFile(fi.Name())
+			if err != nil {
+				fmt.Printf("could not the markdown file '%s'\n", fi.Name())
+				fmt.Println(err)
+				return nil, err
+			}
+			p, err := parseMetadataAndContent(string(mdContent))
+			if err != nil {
+				fmt.Printf("could not parse metada and content for '%s'\n", fi.Name())
+				fmt.Println(err)
+				return nil, err
+			}
+			posts = append(posts, p)
+		}
+	}
+	return posts, nil
+}
+
+func genHTMLFileForPost(post *Post) error {
+	postHTMLContent, err := renderNewPostHTML(post)
+	if err != nil {
+		return err
+	}
+
+	fileName := fmt.Sprintf("%s/%s.html", OutputDir, post.Slug)
+
+	err = os.WriteFile(fileName, postHTMLContent, 0755)
+	if err != nil {
+		fmt.Printf("could not write blog post html file '%s'\n", fileName)
+		return err
+	}
+
+	return nil
+}
+
+func genHTMLFileForHome(posts []*Post) error {
+	homePage, err := renderHomePageHTML(PostList{Posts: posts, BlogTitle: BlogTitle})
+	if err != nil {
+		fmt.Println("could not template.Execute home page", err)
+		return err
+	}
+
+	err = os.WriteFile("index.html", homePage, 0755)
+	if err != nil {
+		fmt.Println("could not write blog post html", err)
+		return err
+	}
+
+	return nil
+}
+
+func genXMLFileForRSS() error {
+
+	rssStruct := RSS{
+		XMLName: xml.Name{Space: "", Local: "rss"},
+		XMLNS:   "http://www.w3.org/2005/Atom",
+		Version: "2.0",
+		Channel: RSSChannel{
+			Title:         BlogTitle,
+			Description:   BlogDescription,
+			LastBuildDate: time.Now().Format("Fri, 30 Jan 2026"),
+			AtomLink: AtomLink{
+				Href: "/rss.xml",
+				Rel:  "self",
+				Type: "application/rss+xml",
+			},
+			Items: []RSSItem{},
+		},
+	}
+
+	rssFeed, err := xml.Marshal(rssStruct)
+	if err != nil {
+		fmt.Println("could not marshal to xml encoding", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	return nil
 }

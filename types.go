@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/xml"
 	"html/template"
 	"time"
 )
@@ -20,7 +21,14 @@ type Post struct {
 
 type PostList struct {
 	BlogTitle string
-	Posts     []Post
+	Posts     []*Post
+}
+
+type RSS struct {
+	XMLName xml.Name   `xml:"rss"`
+	XMLNS   string     `xml:"xmlns:atom,attr"`
+	Version string     `xml:"version,attr"`
+	Channel RSSChannel `xml:"channel"`
 }
 
 type RSSChannel struct {
