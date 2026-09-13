@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
 	"github.com/gosimple/slug"
+	"github.com/knadh/stuffbin"
 	"gopkg.in/yaml.v3"
 )
 
@@ -188,6 +190,10 @@ func buildStaticSite() error {
 	}
 
 	// generating RSS feed
+	err = genXMLFileForRSS(posts)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -245,14 +251,26 @@ func genHTMLFileForHome(posts []*Post) error {
 
 	err = os.WriteFile("index.html", homePage, 0755)
 	if err != nil {
-		fmt.Println("could not write blog post html", err)
+		fmt.Println("could not write home page html", err)
 		return err
 	}
 
 	return nil
 }
 
-func genXMLFileForRSS() error {
+func genXMLFileForRSS(posts []*Post) error {
+
+	rssItems := make([]RSSItem, 0)
+	for _, post := range posts {
+		rssItem := RSSItem{
+			Title:       post.Title,
+			Link:        post.Route,
+			PubDate:     post.Date,
+			Description: post.Description,
+			GUID:        post.Slug,
+		}
+		rssItems = append(rssItems, rssItem)
+	}
 
 	rssStruct := RSS{
 		XMLName: xml.Name{Space: "", Local: "rss"},
@@ -267,16 +285,39 @@ func genXMLFileForRSS() error {
 				Rel:  "self",
 				Type: "application/rss+xml",
 			},
-			Items: []RSSItem{},
+			Items: rssItems,
 		},
 	}
 
 	rssFeed, err := xml.Marshal(rssStruct)
 	if err != nil {
 		fmt.Println("could not marshal to xml encoding", err)
-		w.WriteHeader(500)
-		return
+		return err
+	}
+	err = os.WriteFile("rss.xml", rssFeed, 0755)
+	if err != nil {
+		fmt.Println("could not write rss feed xml", err)
+		return err
 	}
 
 	return nil
+}
+
+func initFS() stuffbin.FileSystem {
+	exe, err := os.Executable()
+	if err != nil {
+		log.Fatalf("error getting executable path %v", err)
+	}
+	fs, err := stuffbin.UnStuff(exe)
+	if err != nil {
+		log.Fatalf("error reading the stuffed binary %v", err)
+	}
+
+	fmt.Println("loaded files", fs.List())
+	// _, err = fs.Get("/white.png")
+	// if err != nil {
+	// 	log.Fatalf("error reading white.png: %v", err)
+	// }
+
+	return fs
 }

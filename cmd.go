@@ -42,25 +42,16 @@ func handleNewBlogPost(ctx context.Context, c *cli.Command) error {
 }
 
 func handleBuildStaticSite(ctx context.Context, c *cli.Command) error {
-	// create the output folder fresh
-	err := recreateOutputDir()
-	if err != nil {
-		return err
-	}
 
-	// build the static site
-
-	return nil
+	return buildStaticSite()
 }
 
 func handleBuildAndServe(ctx context.Context, c *cli.Command) error {
-	// create the output folder fresh
-	err := recreateOutputDir()
+
+	err := buildStaticSite()
 	if err != nil {
 		return err
 	}
-
-	// build the static site
 
 	// serve the static file
 	return serve()

@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const ServerPort = ":4000"
+
 const OutputDir = "./dist"
 const OutputDirPrefix = "/dist/"
 
@@ -21,7 +23,7 @@ func serve() error {
 	mux.Handle(OutputDirPrefix, http.StripPrefix(OutputDirPrefix, fs))
 
 	srv := &http.Server{
-		Addr:    ":4000",
+		Addr:    ServerPort,
 		Handler: mux,
 	}
 	shutdownErr := make(chan error, 1)
