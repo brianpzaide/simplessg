@@ -5,17 +5,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/knadh/stuffbin"
 	"github.com/urfave/cli/v3"
 )
 
-const BlogTitle = "A hobbyist programmer"
-const BlogDescription = "A hobbyist programmer"
-
-var fs stuffbin.FileSystem
-
 func main() {
-	fs = initFS()
 	initTemplates()
 	app := &cli.Command{
 		Name:  "SimpleSSG",

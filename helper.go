@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,7 +15,6 @@ import (
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
 	"github.com/gosimple/slug"
-	"github.com/knadh/stuffbin"
 	"gopkg.in/yaml.v3"
 )
 
@@ -81,9 +80,9 @@ func recreateOutputDir() error {
 	if err := os.MkdirAll(OutputDir, 0755); err != nil {
 		return fmt.Errorf("create %q: %w", OutputDir, err)
 	}
-
+	assetsDir := fmt.Sprintf("%s/assets", OutputDir)
 	// copying the assets folder into the output dir
-	err := os.CopyFS(OutputDir, os.DirFS("assets"))
+	err := os.CopyFS(assetsDir, os.DirFS("posts/assets"))
 	if err != nil {
 		return fmt.Errorf("copy assets: %w", err)
 	}
@@ -177,6 +176,7 @@ func buildStaticSite() error {
 		return err
 	}
 	for _, p := range posts {
+		fmt.Println(p.Slug)
 		err = genHTMLFileForPost(p)
 		if err != nil {
 			return err
@@ -199,17 +199,23 @@ func buildStaticSite() error {
 }
 
 func getAllPosts() ([]*Post, error) {
-	fis, err := os.ReadDir(".")
+	fis, err := os.ReadDir("./posts")
 	if err != nil {
 		fmt.Println("could not the post directory", err)
+		return nil, err
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		fmt.Println("could not get the current working directory", err)
 		return nil, err
 	}
 	posts := make([]*Post, 0)
 	for _, fi := range fis {
 		if !fi.IsDir() && strings.HasSuffix(fi.Name(), ".md") {
-			mdContent, err := os.ReadFile(fi.Name())
+			fileName := filepath.Join(wd, "posts", fi.Name())
+			mdContent, err := os.ReadFile(fileName)
 			if err != nil {
-				fmt.Printf("could not the markdown file '%s'\n", fi.Name())
+				fmt.Printf("could not read the markdown file '%s'\n", fi.Name())
 				fmt.Println(err)
 				return nil, err
 			}
@@ -249,7 +255,9 @@ func genHTMLFileForHome(posts []*Post) error {
 		return err
 	}
 
-	err = os.WriteFile("index.html", homePage, 0755)
+	fileName := fmt.Sprintf("%s/index.html", OutputDir)
+
+	err = os.WriteFile(fileName, homePage, 0755)
 	if err != nil {
 		fmt.Println("could not write home page html", err)
 		return err
@@ -279,7 +287,7 @@ func genXMLFileForRSS(posts []*Post) error {
 		Channel: RSSChannel{
 			Title:         BlogTitle,
 			Description:   BlogDescription,
-			LastBuildDate: time.Now().Format("Fri, 30 Jan 2026"),
+			LastBuildDate: time.Now().Format("Jan 2, 2006"),
 			AtomLink: AtomLink{
 				Href: "/rss.xml",
 				Rel:  "self",
@@ -294,7 +302,9 @@ func genXMLFileForRSS(posts []*Post) error {
 		fmt.Println("could not marshal to xml encoding", err)
 		return err
 	}
-	err = os.WriteFile("rss.xml", rssFeed, 0755)
+
+	fileName := fmt.Sprintf("%s/rss.xml", OutputDir)
+	err = os.WriteFile(fileName, rssFeed, 0755)
 	if err != nil {
 		fmt.Println("could not write rss feed xml", err)
 		return err
@@ -303,21 +313,21 @@ func genXMLFileForRSS(posts []*Post) error {
 	return nil
 }
 
-func initFS() stuffbin.FileSystem {
-	exe, err := os.Executable()
-	if err != nil {
-		log.Fatalf("error getting executable path %v", err)
-	}
-	fs, err := stuffbin.UnStuff(exe)
-	if err != nil {
-		log.Fatalf("error reading the stuffed binary %v", err)
-	}
+// func initFS() stuffbin.FileSystem {
+// 	exe, err := os.Executable()
+// 	if err != nil {
+// 		log.Fatalf("error getting executable path %v", err)
+// 	}
+// 	fs, err := stuffbin.UnStuff(exe)
+// 	if err != nil {
+// 		log.Fatalf("error reading the stuffed binary %v", err)
+// 	}
 
-	fmt.Println("loaded files", fs.List())
-	// _, err = fs.Get("/white.png")
-	// if err != nil {
-	// 	log.Fatalf("error reading white.png: %v", err)
-	// }
+// 	fmt.Println("loaded files", fs.List())
+// 	// _, err = fs.Get("/white.png")
+// 	// if err != nil {
+// 	// 	log.Fatalf("error reading white.png: %v", err)
+// 	// }
 
-	return fs
-}
+// 	return fs
+// }

@@ -11,16 +11,11 @@ import (
 	"time"
 )
 
-const ServerPort = ":4000"
-
-const OutputDir = "./dist"
-const OutputDirPrefix = "/dist/"
-
 func serve() error {
 	mux := http.NewServeMux()
 
 	fs := http.FileServer(http.Dir(OutputDir))
-	mux.Handle(OutputDirPrefix, http.StripPrefix(OutputDirPrefix, fs))
+	mux.Handle("/", fs)
 
 	srv := &http.Server{
 		Addr:    ServerPort,
