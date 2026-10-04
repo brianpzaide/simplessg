@@ -79,7 +79,6 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 ```
-In your repository's Settings → Pages, set the deployment source to GitHub Actions.
 
 #### Docker
 
